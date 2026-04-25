@@ -1,3 +1,6 @@
+import StockRow from "./StockRow";
+import { COLORS } from "../../utils/constants";
+
 export default function StockTable({
   stocks,
   onSelect,
@@ -6,13 +9,14 @@ export default function StockTable({
 }) {
   return (
     <div style={{
-      background: "#101828",
+      background: COLORS.bg2,
       borderRadius: 12,
-      padding: 16
+      padding: 16,
+      border: `1px solid ${COLORS.border}`
     }}>
-      <h3 style={{ marginBottom: 10 }}>Market</h3>
+      <h3 style={{ marginBottom: 10, color: COLORS.textPrimary }}>Market</h3>
 
-      <table>
+      <table style={{ width: "100%", borderCollapse: "collapse", color: COLORS.textSecondary }}>
         <thead>
           <tr>
             <th>Symbol</th>
@@ -23,6 +27,11 @@ export default function StockTable({
         </thead>
 
         <tbody>
+          {stocks.length === 0 && (
+            <tr>
+              <td colSpan={6} style={{ padding: 16, color: COLORS.textMuted }}>Loading stocks...</td>
+            </tr>
+          )}
           {stocks.map((s) => (
             <StockRow
               key={s.symbol}

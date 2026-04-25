@@ -16,6 +16,8 @@ def get_sentiment(text):
 def predict_stock(symbol, days):
     stock = yf.Ticker(symbol)
     hist = stock.history(period="3mo")
+    if hist.empty:
+        raise ValueError("No price history found for symbol")
 
     last_price = hist["Close"].iloc[-1]
 
@@ -29,7 +31,9 @@ def predict_stock(symbol, days):
 
     sentiment_score = sentiment[2] - sentiment[0]
 
-    predicted_price = last_price * (1 + trend + sentiment_score * 0.05)
+    # Scale short-term trend contribution by requested forecast horizon.
+    horizon_factor = max(1, min(int(days), 30)) / 7
+    predicted_price = last_price * (1 + (trend * horizon_factor) + sentiment_score * 0.05)
 
     confidence = abs(sentiment_score)
 

@@ -5,6 +5,7 @@ const trackedSchema = new mongoose.Schema({
   symbol: String,
   thresholdHigh: Number,
   thresholdLow: Number,
+  lastKnownPrice: Number,
   createdAt: { type: Date, default: Date.now }
 });
 

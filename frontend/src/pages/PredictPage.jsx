@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getTracked, getStock } from "../api/stocks";
+import { getTracked, getStock, runPrediction as requestPrediction } from "../api/stocks";
 import { COLORS } from "../utils/constants";
 import Tag from "../components/common/Tag";
 import MiniChart from "../components/charts/MiniChart";
@@ -19,22 +19,57 @@ export default function PredictPage() {
   const [timeframe, setTimeframe] = useState(7);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // load tracked or fallback to mock
-    getTracked().then(res => setStocks(res.data.length ? res.data : mockStocks)).catch(() => setStocks(mockStocks));
+    (async () => {
+      try {
+        const trackedRes = await getTracked();
+        const symbols = trackedRes.data.length ? trackedRes.data.map((item) => item.symbol) : mockStocks.map((item) => item.symbol);
+        const details = await Promise.all(
+          symbols.map(async (symbol) => {
+            try {
+              const stockRes = await getStock(symbol);
+              return stockRes.data;
+            } catch {
+              return mockStocks.find((item) => item.symbol === symbol);
+            }
+          })
+        );
+        setStocks(details.filter(Boolean));
+      } catch {
+        setStocks(mockStocks);
+      }
+    })();
   }, []);
 
-  const runPrediction = () => {
+  const runPrediction = async () => {
     if (!selected) return;
-    setRunning(true); setResult(null);
-    setTimeout(() => {
-      const positive = selected.change >= 0;
-      const factor = positive ? 1 + Math.random() * 0.07 : 1 - Math.random() * 0.05;
-      setResult({ price: selected.price * factor, confidence: 0.6 + Math.random() * 0.3, trend: positive ? "BULLISH" : "BEARISH" });
+    setError("");
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await requestPrediction({ symbol: selected.symbol, timeframe });
+      const trend = res.data.predictedPrice >= res.data.currentPrice ? "BULLISH" : "BEARISH";
+      setResult({
+        price: res.data.predictedPrice,
+        confidence: res.data.confidence,
+        trend,
+        currentPrice: res.data.currentPrice
+      });
+    } catch (err) {
+      setError(err.response?.data?.msg || "Prediction service is unavailable");
+    } finally {
       setRunning(false);
-    }, 1800);
+    }
   };
+
+  const projectionData = result && selected?.history?.length
+    ? [
+      ...selected.history.slice(-45),
+      { date: new Date(), price: result.price }
+    ]
+    : selected?.history || [];
 
   return (
     <div>
@@ -78,7 +113,7 @@ export default function PredictPage() {
           <div style={{ padding: 24 }}>
             <div style={{ padding: 20, borderRadius: 10, marginBottom: 24, background: COLORS.bg0, border: `1px solid ${COLORS.border}` }}>
               <div style={{ fontSize: 11, color: COLORS.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>90-Day Historical · OHLC Source: Yahoo Finance</div>
-              <MiniChart data={Array.from({length:90}).map((_,i)=>({ date: `D${i}`, price: selected.price * (0.9 + Math.random()*0.2) }))} positive={selected.change >= 0} />
+              <MiniChart data={selected.history || []} positive={selected.change >= 0} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -100,6 +135,7 @@ export default function PredictPage() {
                 </div>
 
                 <button onClick={runPrediction} disabled={running} style={{ width: "100%", padding: "14px 0", borderRadius: 8, background: running ? COLORS.bg3 : `linear-gradient(90deg, ${COLORS.cyan}, ${COLORS.green}CC)`, border: running ? `1px solid ${COLORS.border}` : "none", color: running ? COLORS.textMuted : COLORS.bg0, fontSize: 14, fontWeight: 700, cursor: running ? "wait" : "pointer", boxShadow: running ? "none" : `0 0 28px ${COLORS.cyan}22` }}>{running ? "◈ Running FinGPT Model..." : "◈ Generate AI Prediction"}</button>
+                {error && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.red }}>{error}</div>}
               </div>
 
               <div>
@@ -132,7 +168,7 @@ export default function PredictPage() {
                         <span style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Model Confidence</span>
                         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: COLORS.cyan }}>{(result.confidence * 100).toFixed(1)}%</span>
                       </div>
-                      <div style={{ marginBottom: 0 }}><MiniChart data={Array.from({length:90}).map((_,i)=>({ date: `D${i}`, price: result.price * (0.95 + Math.random()*0.1) }))} positive={result.trend === "BULLISH"} /></div>
+                      <div style={{ marginBottom: 0 }}><MiniChart data={projectionData} positive={result.trend === "BULLISH"} /></div>
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

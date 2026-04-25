@@ -7,6 +7,7 @@ export const COLORS = {
   surfaceHover: "#1F2E4A",
   border: "#1E3050",
   cyan: "#00D4FF",
+  cyanDim: "#00A8CC",
   green: "#00E5A0",
   red: "#FF4D6A",
   amber: "#F5A623",

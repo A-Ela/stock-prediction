@@ -9,8 +9,9 @@ const authMiddleware = require("../middleware/authMiddleware")
 router.post("/auth/register", auth.register);
 router.post("/auth/login", auth.login);
 
+router.get("/stock/search", stock.searchStock);
 router.get("/stock/:symbol", stock.getStock);
-router.post("/predict", prediction.predict);
+router.post("/predict", authMiddleware, prediction.predict);
 
 router.post("/tracked", authMiddleware, tracked.addTracked);
 router.get("/tracked", authMiddleware, tracked.getTracked);
