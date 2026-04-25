@@ -1,0 +1,7 @@
+# Minimal .gitignore for this backend folder
+
+# Node dependencies (not present in repo tree but standard for Node projects)
+node_modules/
+
+# Environment file present in the folder
+.env

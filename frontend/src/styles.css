@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: #060A12;
+  color: #E8F0FF;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 12px;
+  color: #7A9CC8;
+  font-size: 12px;
+}
+
+td {
+  padding: 14px 12px;
+  border-top: 1px solid #1E3050;
+}
+
+tr:hover {
+  background: #0B1120;
+}
