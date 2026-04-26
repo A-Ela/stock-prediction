@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StockTable from "../components/stock/StockTable";
-import { getTracked, getStock } from "../api/stocks";
+import { getTracked, getStockList } from "../api/stocks";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import TrackedPanel from "../components/stock/TrackedPanel";
-import StockSearchPanel from "../components/stock/StockSearchPanel";
+import TopMovers from "../components/stock/TopMovers";
 import PredictPage from "./PredictPage";
 import NotificationsPage from "./NotificationsPage";
 import { COLORS } from "../utils/constants";
@@ -13,6 +13,10 @@ export default function DashboardPage({ onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [stocks, setStocks] = useState([]);
   const [trackedSymbols, setTrackedSymbols] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingStocks, setLoadingStocks] = useState(false);
+  const sentinelRef = useRef(null);
 
   const loadTracked = async () => {
     try {
@@ -23,28 +27,65 @@ export default function DashboardPage({ onLogout }) {
     }
   };
 
-  const loadStocks = async () => {
-    const symbols = ["AAPL", "TSLA", "MSFT"];
+  const loadStocks = useCallback(async (pageToLoad = 1) => {
+    if (loadingStocks) return;
+    setLoadingStocks(true);
     try {
-      const results = await Promise.all(symbols.map(s => getStock(s)));
-      setStocks(results.map(r => ({
-        symbol: r.data.symbol,
-        name: r.data.name,
-        price: r.data.price,
-        change: r.data.change,
-        pct: r.data.pct,
-        history: r.data.history
-      })));
+      const res = await getStockList(pageToLoad, 12);
+      const items = res.data.items || [];
+      setStocks((prev) => {
+        const merged = [...prev, ...items];
+        const unique = [];
+        const seen = new Set();
+        for (const item of merged) {
+          if (!seen.has(item.symbol)) {
+            unique.push(item);
+            seen.add(item.symbol);
+          }
+        }
+        return unique;
+      });
+      setHasMore(Boolean(res.data.hasMore));
+      setCurrentPage(pageToLoad);
     } catch (err) {
       console.error("Stock load error:", err);
+    } finally {
+      setLoadingStocks(false);
     }
-  };
+  }, [loadingStocks]);
 
   useEffect(() => {
     (async () => {
-      await Promise.all([loadTracked(), loadStocks()]);
+      await Promise.all([loadTracked(), loadStocks(1)]);
     })();
   }, []);
+
+  useEffect(() => {
+    if (page !== "dashboard") return;
+    if (!sentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !loadingStocks) {
+          loadStocks(currentPage + 1);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [page, hasMore, loadingStocks, currentPage, loadStocks]);
+
+  const topGainers = useMemo(
+    () => [...stocks].sort((a, b) => (b.pct || 0) - (a.pct || 0)).slice(0, 3),
+    [stocks]
+  );
+  const topLosers = useMemo(
+    () => [...stocks].sort((a, b) => (a.pct || 0) - (b.pct || 0)).slice(0, 3),
+    [stocks]
+  );
 
   const handleSelect = (stock) => {
     console.log("Selected:", stock);
@@ -67,14 +108,21 @@ export default function DashboardPage({ onLogout }) {
         gap: 20,
         padding: 20
       }}>
-        <div style={{ display: "grid", gap: 20 }}>
-          <StockSearchPanel onTracked={loadTracked} />
+        <div style={{ display: "grid", gap: 16 }}>
+          <TopMovers gainers={topGainers} losers={topLosers} />
           <StockTable
             stocks={stocks}
             onSelect={handleSelect}
             trackedSymbols={trackedSymbols}
             refreshTracked={loadTracked}
           />
+          <div ref={sentinelRef} />
+          {loadingStocks && (
+            <div style={{ color: COLORS.textMuted, fontSize: 12 }}>Loading more stocks...</div>
+          )}
+          {!hasMore && stocks.length > 0 && (
+            <div style={{ color: COLORS.textMuted, fontSize: 12 }}>All stocks loaded.</div>
+          )}
         </div>
         <TrackedPanel refreshTracked={loadTracked} />
       </div>

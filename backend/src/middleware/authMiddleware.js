@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const JWT_SECRET = process.env.JWT_SECRET || "dev-only-jwt-secret";
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ const authMiddleware = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     // 2. Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     // 3. Attach user to request (without password)
     const user = await User.findById(decoded.id).select("-password");

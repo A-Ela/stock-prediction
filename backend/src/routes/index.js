@@ -10,6 +10,7 @@ router.post("/auth/register", auth.register);
 router.post("/auth/login", auth.login);
 
 router.get("/stock/search", stock.searchStock);
+router.get("/stocks", stock.listStocks);
 router.get("/stock/:symbol", stock.getStock);
 router.post("/predict", authMiddleware, prediction.predict);
 

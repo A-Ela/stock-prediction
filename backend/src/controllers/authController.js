@@ -2,6 +2,8 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = process.env.JWT_SECRET || "dev-only-jwt-secret";
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -23,7 +25,7 @@ exports.register = async (req, res) => {
       passwordHash: hash
     });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, JWT_SECRET);
 
     res.status(201).json({
       token,
@@ -34,6 +36,7 @@ exports.register = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error("Register error:", err.message);
     res.status(500).json({ msg: "Registration failed" });
   }
 };
@@ -51,7 +54,7 @@ exports.login = async (req, res) => {
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) return res.status(400).json({ msg: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, JWT_SECRET);
 
     res.json({
       token,
@@ -62,6 +65,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error("Login error:", err.message);
     res.status(500).json({ msg: "Login failed" });
   }
 };

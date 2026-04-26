@@ -1,4 +1,5 @@
 // components/layout/Sidebar.jsx
+import { useMemo } from "react";
 import { COLORS } from "../../utils/constants";
 
 const NavItem = ({ label, active, onClick, icon }) => (
@@ -17,6 +18,17 @@ const NavItem = ({ label, active, onClick, icon }) => (
 );
 
 export default function Sidebar({ page = "dashboard", setPage = () => {} }) {
+  const user = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+  const userName = user?.name || "Trader";
+  const userEmail = user?.email || "No email";
+  const initials = (userName || "T").trim().slice(0, 1).toUpperCase();
+
   return (
     <div style={{
       width: 220,
@@ -50,12 +62,12 @@ export default function Sidebar({ page = "dashboard", setPage = () => {} }) {
       <div style={{ padding: 12, borderRadius: 8, marginTop: "auto", background: COLORS.bg3, border: `1px solid ${COLORS.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
 
-          <div style={{ width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.cyan}44, ${COLORS.bg0})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, border: `1px solid ${COLORS.cyan}44`, color: COLORS.cyan }}>F</div>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.cyan}44, ${COLORS.bg0})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, border: `1px solid ${COLORS.cyan}44`, color: COLORS.cyan }}>{initials}</div>
 
           <div>
-            <div style={{ fontSize: 12, color: COLORS.textPrimary, fontWeight: 600 }}>Fonda User</div>
+            <div style={{ fontSize: 12, color: COLORS.textPrimary, fontWeight: 600 }}>{userName}</div>
 
-            <div style={{ fontSize: 10, color: COLORS.textMuted }}>trader@fonda.sa</div>
+            <div style={{ fontSize: 10, color: COLORS.textMuted }}>{userEmail}</div>
           </div>
 
         </div>

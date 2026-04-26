@@ -3,6 +3,9 @@ import API from "./api";
 export const getStock = (symbol) =>
   API.get(`/stock/${symbol}`);
 
+export const getStockList = (page = 1, pageSize = 12) =>
+  API.get(`/stocks?page=${page}&pageSize=${pageSize}`);
+
 export const searchStocks = (query) =>
   API.get(`/stock/search?q=${encodeURIComponent(query)}`);
 
