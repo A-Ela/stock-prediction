@@ -1,7 +1,19 @@
 import API from "./api";
 
-export const getStock = (symbol) =>
-  API.get(`/stock/${symbol}`);
+export const getStock = (symbol, options = {}) => {
+  const params = new URLSearchParams();
+
+  if (options.range) {
+    params.set("range", options.range);
+  }
+
+  if (options.interval) {
+    params.set("interval", options.interval);
+  }
+
+  const query = params.toString();
+  return API.get(`/stock/${symbol}${query ? `?${query}` : ""}`);
+};
 
 export const getStockList = (page = 1, pageSize = 12) =>
   API.get(`/stocks?page=${page}&pageSize=${pageSize}`);

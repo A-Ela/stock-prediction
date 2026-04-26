@@ -1,64 +1,155 @@
-import { useEffect, useState } from "react";
-import { getStock, getTracked, removeTracked } from "../../api/stocks";
 import MiniChart from "../charts/MiniChart";
 import { COLORS } from "../../utils/constants";
+import { formatPrice } from "../../utils/helpers";
 
-export default function TrackedPanel({ refreshTracked = () => {} }) {
-  const [tracked, setTracked] = useState([]);
-
-  const loadTracked = async () => {
-    const res = await getTracked();
-    const enriched = await Promise.all(
-      res.data.map(async (item) => {
-        try {
-          const stockRes = await getStock(item.symbol);
-          return { ...item, live: stockRes.data };
-        } catch {
-          return { ...item, live: null };
-        }
-      })
-    );
-    setTracked(enriched);
-  };
-
-  useEffect(() => {
-    (async () => {
-      await loadTracked();
-    })();
-  }, []);
-
-  const handleRemove = async (symbol) => {
-    await removeTracked(symbol);
-    await loadTracked();
-    refreshTracked();
+export default function TrackedPanel({
+  items = [],
+  loading = false,
+  onRemoveTracked = async () => {},
+  onSelect = () => {}
+}) {
+  const handleRemove = async (event, symbol) => {
+    event.stopPropagation();
+    await onRemoveTracked(symbol);
   };
 
   return (
-    <div style={{
-      background: COLORS.bg2,
-      borderRadius: 12,
-      padding: 16,
-      border: `1px solid ${COLORS.border}`
-    }}>
-      <h3 style={{ color: COLORS.textPrimary }}>Tracked</h3>
+    <div
+      style={{
+        background: COLORS.bg2,
+        borderRadius: 12,
+        padding: 16,
+        border: `1px solid ${COLORS.border}`,
+        maxHeight: "calc(100vh - 140px)",
+        overflowY: "auto"
+      }}
+    >
+      <h3 style={{ color: COLORS.textPrimary, marginTop: 0 }}>Tracked</h3>
 
-      {tracked.map(t => (
-        <div key={t.symbol} style={{
-          padding: 10,
-          borderBottom: `1px solid ${COLORS.border}`
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontFamily: "'Space Mono', monospace", color: COLORS.cyan }}>{t.symbol}</span>
-            <button onClick={() => handleRemove(t.symbol)} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, borderRadius: 6, cursor: "pointer" }}>Remove</button>
-          </div>
-          <div style={{ fontSize: 12, color: COLORS.textSecondary, marginBottom: 8 }}>
-            {typeof t.live?.price === "number" ? `Current: ${t.live.price.toFixed(2)}` : "Live price unavailable"}
-          </div>
-          <MiniChart data={t.live?.history || []} />
+      {loading && items.length === 0 && (
+        <div style={{ color: COLORS.textMuted, fontSize: 12 }}>
+          Loading tracked stocks...
         </div>
-      ))}
-      {tracked.length === 0 && (
-        <div style={{ color: COLORS.textMuted, fontSize: 12 }}>No tracked stocks yet.</div>
+      )}
+
+      {items.map((item) => {
+        const live = item.live || {
+          symbol: item.symbol,
+          name: item.symbol,
+          price: item.lastKnownPrice,
+          currency: "USD",
+          pct: null,
+          history: []
+        };
+        const canOpen = Boolean(item.symbol);
+
+        return (
+          <div
+            key={item.symbol}
+            onClick={() => canOpen && onSelect(live)}
+            style={{
+              width: "100%",
+              background: COLORS.bg0,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 10,
+              cursor: canOpen ? "pointer" : "default"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 8,
+                marginBottom: 8
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontFamily: "'Space Mono', monospace",
+                    color: COLORS.cyan,
+                    fontSize: 13,
+                    marginBottom: 4
+                  }}
+                >
+                  {item.symbol}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: COLORS.textMuted,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {live?.name || item.symbol}
+                </div>
+              </div>
+              <button
+                onClick={(event) => handleRemove(event, item.symbol)}
+                style={{
+                  flexShrink: 0,
+                  background: "transparent",
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.textMuted,
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  padding: "6px 8px",
+                  fontSize: 11
+                }}
+              >
+                Remove
+              </button>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: COLORS.textSecondary
+                }}
+              >
+                {typeof live?.price === "number"
+                  ? `Current: ${formatPrice(live.price, live.currency)}`
+                  : item.liveStatus === "stale"
+                    ? "Using cached quote"
+                    : "Refreshing live quote..."}
+              </div>
+              {live?.pct !== undefined && live?.pct !== null && (
+                <div
+                  style={{
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: 11,
+                    color: live.pct >= 0 ? COLORS.green : COLORS.red
+                  }}
+                >
+                  {live.pct >= 0 ? "+" : ""}
+                  {live.pct.toFixed(2)}%
+                </div>
+              )}
+            </div>
+            <div style={{ overflow: "hidden" }}>
+              <MiniChart data={live?.history || []} />
+            </div>
+          </div>
+        );
+      })}
+
+      {!loading && items.length === 0 && (
+        <div style={{ color: COLORS.textMuted, fontSize: 12 }}>
+          No tracked stocks yet.
+        </div>
       )}
     </div>
   );
