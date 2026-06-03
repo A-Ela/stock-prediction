@@ -1,6 +1,13 @@
 fastapi
-uvicorn
+uvicorn[standard]
+pydantic
 torch
-transformers
+transformers>=4.36.0
+peft>=0.7.0
+accelerate
+sentencepiece
 yfinance
 pandas
+numpy
+scikit-learn
+xgboost

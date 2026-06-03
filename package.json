@@ -2,6 +2,7 @@
 "scripts":{
     "frontend-dev":"npm --prefix ./frontend run dev",
     "backend-dev":"npm --prefix ./backend run dev",
+    "ai-service-dev":"npm --prefix ./ai_service run dev",
     "dev":"concurrently \"npm run backend-dev\" \"npm run frontend-dev\""},
 
 "devDependencies":{

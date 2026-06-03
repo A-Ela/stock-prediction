@@ -17,7 +17,7 @@ const authMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // 3. Attach user to request (without password)
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-passwordHash");
 
     if (!user) {
       return res.status(401).json({ msg: "User not found" });

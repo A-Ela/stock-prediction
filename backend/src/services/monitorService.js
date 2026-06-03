@@ -1,61 +1,212 @@
 const cron = require("node-cron");
 const TrackedStock = require("../models/TrackedStock");
 const Notification = require("../models/notification");
+const User = require("../models/User");
 const { fetchStockData } = require("./stockService");
-const { sendStockChangeEmail } = require("./emailService");
+const {
+  isEmailConfigured,
+  sendDailyDigestEmail,
+  sendThresholdAlertEmail
+} = require("./emailService");
+
+const THRESHOLD_CRON = process.env.THRESHOLD_MONITOR_CRON || "*/5 * * * *";
+const DAILY_DIGEST_CRON = process.env.DAILY_DIGEST_CRON || "0 8 * * *";
+const DIGEST_TIMEZONE = process.env.DIGEST_TIMEZONE || "America/New_York";
+
+const startOfToday = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const fetchTrackedQuote = async (symbol) => {
+  const data = await fetchStockData(symbol, {
+    historyOptions: { range: "5d", interval: "1d" }
+  });
+  return {
+    symbol: data.symbol,
+    name: data.name,
+    price: data.price,
+    change: data.change,
+    pct: data.pct,
+    currency: data.currency
+  };
+};
+
+exports.runThresholdCheck = async () => {
+  const tracked = await TrackedStock.find().populate("userID", "email name");
+  let alertsSent = 0;
+
+  for (const item of tracked) {
+    if (!item.userID?.email) continue;
+
+    try {
+      const quote = await fetchTrackedQuote(item.symbol);
+      const price = quote.price;
+      const previous = item.lastKnownPrice;
+
+      if (typeof previous === "number") {
+        if (
+          typeof item.thresholdHigh === "number" &&
+          previous < item.thresholdHigh &&
+          price >= item.thresholdHigh
+        ) {
+          await Notification.create({
+            userID: item.userID._id,
+            stockSymbol: item.symbol,
+            type: "threshold",
+            message: `${item.symbol} rose above $${item.thresholdHigh.toFixed(2)} (now $${price.toFixed(2)})`
+          });
+
+          if (isEmailConfigured()) {
+            await sendThresholdAlertEmail({
+              to: item.userID.email,
+              symbol: item.symbol,
+              direction: "high",
+              threshold: item.thresholdHigh,
+              currentPrice: price
+            });
+          }
+
+          alertsSent += 1;
+        }
+
+        if (
+          typeof item.thresholdLow === "number" &&
+          previous > item.thresholdLow &&
+          price <= item.thresholdLow
+        ) {
+          await Notification.create({
+            userID: item.userID._id,
+            stockSymbol: item.symbol,
+            type: "threshold",
+            message: `${item.symbol} fell below $${item.thresholdLow.toFixed(2)} (now $${price.toFixed(2)})`
+          });
+
+          if (isEmailConfigured()) {
+            await sendThresholdAlertEmail({
+              to: item.userID.email,
+              symbol: item.symbol,
+              direction: "low",
+              threshold: item.thresholdLow,
+              currentPrice: price
+            });
+          }
+
+          alertsSent += 1;
+        }
+      }
+
+      await TrackedStock.findByIdAndUpdate(item._id, { lastKnownPrice: price });
+    } catch (err) {
+      console.error(`Threshold monitor failed for ${item.symbol}:`, err.message);
+    }
+  }
+
+  return { checked: tracked.length, alertsSent };
+};
+
+exports.runDailyDigest = async ({ force = false } = {}) => {
+  const users = await User.find({}, "email name lastDailyDigestAt");
+  const todayStart = startOfToday();
+  let digestsSent = 0;
+
+  for (const user of users) {
+    if (
+      !force &&
+      user.lastDailyDigestAt &&
+      new Date(user.lastDailyDigestAt) >= todayStart
+    ) {
+      continue;
+    }
+
+    const tracked = await TrackedStock.find({ userID: user._id });
+    if (!tracked.length) continue;
+
+    try {
+      const stocks = [];
+
+      for (const item of tracked) {
+        try {
+          const quote = await fetchTrackedQuote(item.symbol);
+          stocks.push({
+            ...quote,
+            thresholdHigh: item.thresholdHigh,
+            thresholdLow: item.thresholdLow
+          });
+          await TrackedStock.findByIdAndUpdate(item._id, {
+            lastKnownPrice: quote.price
+          });
+        } catch (err) {
+          stocks.push({
+            symbol: item.symbol,
+            name: item.symbol,
+            price: item.lastKnownPrice,
+            change: null,
+            pct: null,
+            thresholdHigh: item.thresholdHigh,
+            thresholdLow: item.thresholdLow
+          });
+        }
+      }
+
+      if (isEmailConfigured()) {
+        await sendDailyDigestEmail({
+          to: user.email,
+          userName: user.name,
+          stocks
+        });
+      }
+
+      await Notification.create({
+        userID: user._id,
+        stockSymbol: null,
+        type: "daily",
+        message: `Daily digest: ${stocks.length} tracked stock(s) summary${isEmailConfigured() ? " emailed" : " (email not configured)"}`
+      });
+
+      await User.findByIdAndUpdate(user._id, { lastDailyDigestAt: new Date() });
+      digestsSent += 1;
+    } catch (err) {
+      console.error(`Daily digest failed for ${user.email}:`, err.message);
+    }
+  }
+
+  return { usersChecked: users.length, digestsSent };
+};
 
 const runMonitor = () => {
-  cron.schedule("*/2 * * * *", async () => {
-    console.log("Running stock monitor...");
+  if (!cron.validate(THRESHOLD_CRON)) {
+    console.error("Invalid THRESHOLD_MONITOR_CRON:", THRESHOLD_CRON);
+  } else {
+    cron.schedule(THRESHOLD_CRON, async () => {
+      console.log("Running threshold monitor...");
+      const result = await exports.runThresholdCheck();
+      console.log(
+        `Threshold monitor done: checked=${result.checked}, alerts=${result.alertsSent}`
+      );
+    });
+  }
 
-    const tracked = await TrackedStock.find().populate("userID");
+  if (!cron.validate(DAILY_DIGEST_CRON)) {
+    console.error("Invalid DAILY_DIGEST_CRON:", DAILY_DIGEST_CRON);
+  } else {
+    cron.schedule(
+      DAILY_DIGEST_CRON,
+      async () => {
+        console.log("Running daily digest...");
+        const result = await exports.runDailyDigest();
+        console.log(
+          `Daily digest done: users=${result.usersChecked}, sent=${result.digestsSent}`
+        );
+      },
+      { timezone: DIGEST_TIMEZONE }
+    );
+  }
 
-    for (const t of tracked) {
-      try {
-        const data = await fetchStockData(t.symbol);
-        const price = data.price;
-        const previous = t.lastKnownPrice;
-
-        if (typeof previous === "number" && previous !== price) {
-          const direction = price > previous ? "up" : "down";
-          const message = `Price moved ${direction} from ${previous.toFixed(2)} to ${price.toFixed(2)}`;
-
-          await Notification.create({
-            userID: t.userID._id,
-            stockSymbol: t.symbol,
-            message
-          });
-
-          await sendStockChangeEmail({
-            to: t.userID.email,
-            symbol: t.symbol,
-            previousPrice: previous,
-            currentPrice: price
-          });
-        }
-
-        if (t.thresholdHigh && price >= t.thresholdHigh) {
-          await Notification.create({
-            userID: t.userID._id,
-            stockSymbol: t.symbol,
-            message: `Price exceeded ${t.thresholdHigh} (Now: ${price.toFixed(2)})`
-          });
-        }
-
-        if (t.thresholdLow && price <= t.thresholdLow) {
-          await Notification.create({
-            userID: t.userID._id,
-            stockSymbol: t.symbol,
-            message: `Price dropped below ${t.thresholdLow} (Now: ${price.toFixed(2)})`
-          });
-        }
-
-        await TrackedStock.findByIdAndUpdate(t._id, { lastKnownPrice: price });
-      } catch (err) {
-        console.error(`Monitor failed for ${t.symbol}:`, err.message);
-      }
-    }
-  });
+  console.log(
+    `Monitor scheduled: thresholds="${THRESHOLD_CRON}", daily="${DAILY_DIGEST_CRON}" (${DIGEST_TIMEZONE})`
+  );
+  console.log(`Email delivery: ${isEmailConfigured() ? "enabled" : "disabled (set SMTP_* in .env)"}`);
 };
 
 module.exports = runMonitor;

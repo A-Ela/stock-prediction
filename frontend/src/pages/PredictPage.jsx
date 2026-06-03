@@ -88,11 +88,17 @@ export default function PredictPage() {
         price: res.data.predictedPrice,
         confidence: res.data.confidence,
         currentPrice: res.data.currentPrice,
-        timeframe,
+        timeframe: res.data.timeframe ?? timeframe,
+        sentimentScore: res.data.sentimentScore,
+        sentimentLabel: res.data.sentimentLabel,
         trend
       });
     } catch (err) {
-      setError(err.response?.data?.msg || "Prediction service is unavailable");
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.msg ||
+          "Prediction service is unavailable"
+      );
     } finally {
       setRunning(false);
     }
@@ -558,6 +564,36 @@ export default function PredictPage() {
                         </Tag>
                       </div>
                     </div>
+
+                    {(result.sentimentLabel || result.sentimentScore !== undefined) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          marginBottom: 14,
+                          flexWrap: "wrap"
+                        }}
+                      >
+                        {result.sentimentLabel && (
+                          <Tag
+                            color={
+                              result.sentimentLabel === "positive"
+                                ? COLORS.green
+                                : result.sentimentLabel === "negative"
+                                  ? COLORS.red
+                                  : COLORS.amber
+                            }
+                          >
+                            Sentiment: {result.sentimentLabel}
+                          </Tag>
+                        )}
+                        {result.sentimentScore !== undefined && (
+                          <Tag color={COLORS.cyan}>
+                            Score: {result.sentimentScore.toFixed(2)}
+                          </Tag>
+                        )}
+                      </div>
+                    )}
 
                     <div style={{ marginBottom: 18 }}>
                       <div

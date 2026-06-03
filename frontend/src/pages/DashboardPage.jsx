@@ -324,6 +324,7 @@ export default function DashboardPage({ onLogout }) {
             loading={loadingTracked}
             onRemoveTracked={handleRemoveTracked}
             onSelect={openStockModal}
+            onThresholdsUpdated={() => loadTracked({ silent: true })}
           />
         </div>
       </div>

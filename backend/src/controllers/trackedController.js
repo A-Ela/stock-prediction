@@ -109,6 +109,84 @@ exports.getTracked = async (req, res) => {
   }
 };
 
+exports.updateTracked = async (req, res) => {
+  try {
+    const normalizedSymbol = (req.params.symbol || "").toUpperCase().trim();
+    if (!normalizedSymbol) {
+      return res.status(400).json({ msg: "Symbol is required" });
+    }
+
+    const { thresholdHigh, thresholdLow } = req.body;
+    const updates = {};
+
+    if (thresholdHigh !== undefined) {
+      const high = Number(thresholdHigh);
+      if (!Number.isFinite(high) || high <= 0) {
+        return res.status(400).json({ msg: "thresholdHigh must be a positive number" });
+      }
+      updates.thresholdHigh = high;
+    }
+
+    if (thresholdLow !== undefined) {
+      const low = Number(thresholdLow);
+      if (!Number.isFinite(low) || low <= 0) {
+        return res.status(400).json({ msg: "thresholdLow must be a positive number" });
+      }
+      updates.thresholdLow = low;
+    }
+
+    if (
+      updates.thresholdHigh !== undefined &&
+      updates.thresholdLow !== undefined &&
+      updates.thresholdHigh <= updates.thresholdLow
+    ) {
+      return res.status(400).json({
+        msg: "Upper alert must be greater than lower alert"
+      });
+    }
+
+    const existing = await TrackedStock.findOne({
+      userID: req.user.id,
+      symbol: normalizedSymbol
+    });
+
+    if (!existing) {
+      return res.status(404).json({ msg: "Tracked stock not found" });
+    }
+
+    if (
+      updates.thresholdHigh !== undefined &&
+      updates.thresholdLow === undefined &&
+      updates.thresholdHigh <= (existing.thresholdLow ?? 0)
+    ) {
+      return res.status(400).json({
+        msg: "Upper alert must be greater than lower alert"
+      });
+    }
+
+    if (
+      updates.thresholdLow !== undefined &&
+      updates.thresholdHigh === undefined &&
+      updates.thresholdLow >= (existing.thresholdHigh ?? Infinity)
+    ) {
+      return res.status(400).json({
+        msg: "Lower alert must be less than upper alert"
+      });
+    }
+
+    const tracked = await TrackedStock.findOneAndUpdate(
+      { userID: req.user.id, symbol: normalizedSymbol },
+      updates,
+      { new: true }
+    );
+
+    res.json(tracked);
+  } catch (err) {
+    console.error("Tracked update failed:", err.message);
+    res.status(500).json({ msg: "Failed to update tracked stock" });
+  }
+};
+
 exports.removeTracked = async (req, res) => {
   try {
     await TrackedStock.deleteOne({

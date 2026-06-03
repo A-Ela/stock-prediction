@@ -30,6 +30,9 @@ export const addTracked = (data) =>
 export const removeTracked = (symbol) =>
   API.delete(`/tracked/${symbol}`);
 
+export const updateTracked = (symbol, data) =>
+  API.patch(`/tracked/${symbol}`, data);
+
 export const getNotifications = () =>
   API.get("/notifications");
 
@@ -37,4 +40,4 @@ export const markNotificationRead = (id) =>
   API.patch(`/notifications/${id}`);
 
 export const runPrediction = (data) =>
-  API.post("/predict", data);
+  API.post("/predict", data, { timeout: 180000 });
