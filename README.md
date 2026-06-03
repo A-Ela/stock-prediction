@@ -11,14 +11,13 @@ A full-stack web application for predicting stock prices and analyzing market tr
 
 ## ✨ Features
 
-- 🎯 **Stock Price Predictions** - Advanced ML algorithms with sentiment analysis for accurate market forecasting
-- 📊 **Interactive Visualizations** - Beautiful charts and real-time data visualization
-- 🔐 **Secure Authentication** - JWT-based user authentication with secure password handling
+- 🎯 **Stock Price Predictions** - ML algorithms with sentiment analysis for accurate market forecasting
+- 📊 **Interactive Visualizations** - charts and real-time data visualization
+- 🔐 **Secure Authentication** - JWT-based user authentication
 - 💾 **Data Persistence** - Reliable data storage and management
 - 🔄 **Real-time Updates** - Live market data synchronization
 - 📧 **Smart Notifications** - Market alerts and price notifications
 - 🎨 **Modern UI** - Responsive, intuitive design with React and TailwindCSS
-- ⚡ **Hot Module Replacement** - Instant development experience with Vite
 - 🧠 **Sentiment Analysis** - NLP-powered financial sentiment analysis using FinBERT
 
 ## 🏗️ Project Structure
