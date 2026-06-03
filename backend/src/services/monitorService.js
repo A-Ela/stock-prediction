@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { fetchStockData } = require("./stockService");
 const {
   isEmailConfigured,
+  getEmailStatus,
   sendDailyDigestEmail,
   sendThresholdAlertEmail
 } = require("./emailService");
@@ -32,7 +33,7 @@ const fetchTrackedQuote = async (symbol) => {
   };
 };
 
-exports.runThresholdCheck = async () => {
+const runThresholdCheck = async () => {
   const tracked = await TrackedStock.find().populate("userID", "email name");
   let alertsSent = 0;
 
@@ -58,13 +59,16 @@ exports.runThresholdCheck = async () => {
           });
 
           if (isEmailConfigured()) {
-            await sendThresholdAlertEmail({
+            const mail = await sendThresholdAlertEmail({
               to: item.userID.email,
               symbol: item.symbol,
               direction: "high",
               threshold: item.thresholdHigh,
               currentPrice: price
             });
+            if (!mail.sent) {
+              console.warn(`High-threshold email not sent for ${item.symbol}:`, mail.reason);
+            }
           }
 
           alertsSent += 1;
@@ -83,13 +87,16 @@ exports.runThresholdCheck = async () => {
           });
 
           if (isEmailConfigured()) {
-            await sendThresholdAlertEmail({
+            const mail = await sendThresholdAlertEmail({
               to: item.userID.email,
               symbol: item.symbol,
               direction: "low",
               threshold: item.thresholdLow,
               currentPrice: price
             });
+            if (!mail.sent) {
+              console.warn(`Low-threshold email not sent for ${item.symbol}:`, mail.reason);
+            }
           }
 
           alertsSent += 1;
@@ -105,7 +112,7 @@ exports.runThresholdCheck = async () => {
   return { checked: tracked.length, alertsSent };
 };
 
-exports.runDailyDigest = async ({ force = false } = {}) => {
+const runDailyDigest = async ({ force = false } = {}) => {
   const users = await User.find({}, "email name lastDailyDigestAt");
   const todayStart = startOfToday();
   let digestsSent = 0;
@@ -150,11 +157,14 @@ exports.runDailyDigest = async ({ force = false } = {}) => {
       }
 
       if (isEmailConfigured()) {
-        await sendDailyDigestEmail({
+        const mail = await sendDailyDigestEmail({
           to: user.email,
           userName: user.name,
           stocks
         });
+        if (!mail.sent) {
+          console.warn(`Daily digest email not sent for ${user.email}:`, mail.reason);
+        }
       }
 
       await Notification.create({
@@ -180,7 +190,7 @@ const runMonitor = () => {
   } else {
     cron.schedule(THRESHOLD_CRON, async () => {
       console.log("Running threshold monitor...");
-      const result = await exports.runThresholdCheck();
+      const result = await runThresholdCheck();
       console.log(
         `Threshold monitor done: checked=${result.checked}, alerts=${result.alertsSent}`
       );
@@ -194,7 +204,7 @@ const runMonitor = () => {
       DAILY_DIGEST_CRON,
       async () => {
         console.log("Running daily digest...");
-        const result = await exports.runDailyDigest();
+        const result = await runDailyDigest();
         console.log(
           `Daily digest done: users=${result.usersChecked}, sent=${result.digestsSent}`
         );
@@ -206,7 +216,16 @@ const runMonitor = () => {
   console.log(
     `Monitor scheduled: thresholds="${THRESHOLD_CRON}", daily="${DAILY_DIGEST_CRON}" (${DIGEST_TIMEZONE})`
   );
-  console.log(`Email delivery: ${isEmailConfigured() ? "enabled" : "disabled (set SMTP_* in .env)"}`);
+  const email = getEmailStatus();
+  console.log(
+    `Email delivery: ${email.configured ? `enabled (${email.mode})` : "disabled"}`
+  );
+  if (email.webUI) {
+    console.log(`Email inbox: ${email.webUI}`);
+  }
 };
+
+runMonitor.runThresholdCheck = runThresholdCheck;
+runMonitor.runDailyDigest = runDailyDigest;
 
 module.exports = runMonitor;

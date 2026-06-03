@@ -5,3 +5,4 @@ node_modules/
 
 # Environment file present in the folder
 .env
+.smtp-dev.json

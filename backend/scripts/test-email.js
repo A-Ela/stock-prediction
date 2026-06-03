@@ -8,10 +8,9 @@ const {
   isEmailConfigured,
   sendDailyDigestEmail
 } = require("../src/services/emailService");
-const {
-  runDailyDigest,
-  runThresholdCheck
-} = require("../src/services/monitorService");
+const runMonitor = require("../src/services/monitorService");
+const runDailyDigest = runMonitor.runDailyDigest;
+const runThresholdCheck = runMonitor.runThresholdCheck;
 
 async function main() {
   const mongoUri = process.env.MONGO_URI;
@@ -22,7 +21,10 @@ async function main() {
 
   await mongoose.connect(mongoUri);
   console.log("MongoDB connected");
-  console.log("SMTP configured:", isEmailConfigured());
+  const { verifyEmailConnection, getEmailStatus } = require("../src/services/emailService");
+  const verify = await verifyEmailConnection();
+  console.log("SMTP status:", getEmailStatus());
+  console.log("SMTP verify:", verify);
 
   const digest = await runDailyDigest({ force: true });
   console.log("Daily digest result:", digest);
@@ -30,24 +32,23 @@ async function main() {
   const threshold = await runThresholdCheck();
   console.log("Threshold check result:", threshold);
 
-  if (isEmailConfigured() && process.env.TEST_EMAIL_TO) {
-    await sendDailyDigestEmail({
-      to: process.env.TEST_EMAIL_TO,
-      userName: "Test User",
-      stocks: [
-        {
-          symbol: "NVDA",
-          name: "NVIDIA Corporation",
-          price: 215.25,
-          change: -5.4,
-          pct: -2.4,
-          thresholdHigh: 230,
-          thresholdLow: 200
-        }
-      ]
-    });
-    console.log("Direct test email sent to", process.env.TEST_EMAIL_TO);
-  }
+  const testTo = process.env.TEST_EMAIL_TO || "trader@stocksight.test";
+  const sample = await sendDailyDigestEmail({
+    to: testTo,
+    userName: "Test User",
+    stocks: [
+      {
+        symbol: "NVDA",
+        name: "NVIDIA Corporation",
+        price: 215.25,
+        change: -5.4,
+        pct: -2.4,
+        thresholdHigh: 230,
+        thresholdLow: 200
+      }
+    ]
+  });
+  console.log("Sample digest:", sample);
 
   await mongoose.disconnect();
   console.log("Done.");

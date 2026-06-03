@@ -1,19 +1,23 @@
 const {
   isEmailConfigured,
+  getEmailStatus,
+  verifyEmailConnection,
   sendDailyDigestEmail,
   sendThresholdAlertEmail
 } = require("../services/emailService");
-const {
-  runDailyDigest,
-  runThresholdCheck
-} = require("../services/monitorService");
+const runMonitor = require("../services/monitorService");
+const runDailyDigest = runMonitor.runDailyDigest;
+const runThresholdCheck = runMonitor.runThresholdCheck;
 
-exports.getEmailStatus = (_req, res) => {
+exports.getEmailStatus = async (_req, res) => {
+  const verify = isEmailConfigured() ? await verifyEmailConnection() : null;
+
   res.json({
-    configured: isEmailConfigured(),
+    ...getEmailStatus(),
     thresholdCron: process.env.THRESHOLD_MONITOR_CRON || "*/5 * * * *",
     dailyDigestCron: process.env.DAILY_DIGEST_CRON || "0 8 * * *",
-    digestTimezone: process.env.DIGEST_TIMEZONE || "America/New_York"
+    digestTimezone: process.env.DIGEST_TIMEZONE || "America/New_York",
+    verify
   });
 };
 
@@ -22,7 +26,7 @@ exports.triggerDailyDigest = async (_req, res) => {
     const result = await runDailyDigest({ force: true });
     res.json({
       msg: "Daily digest job completed",
-      emailConfigured: isEmailConfigured(),
+      email: getEmailStatus(),
       ...result
     });
   } catch (err) {
@@ -36,7 +40,7 @@ exports.triggerThresholdCheck = async (_req, res) => {
     const result = await runThresholdCheck();
     res.json({
       msg: "Threshold monitor completed",
-      emailConfigured: isEmailConfigured(),
+      email: getEmailStatus(),
       ...result
     });
   } catch (err) {
@@ -79,7 +83,10 @@ exports.sendTestEmail = async (req, res) => {
       currentPrice: 201.5
     });
 
-    res.json({ msg: `Test emails sent to ${to}` });
+    res.json({
+      msg: `Test emails sent to ${to}`,
+      webUI: getEmailStatus().webUI
+    });
   } catch (err) {
     console.error("Test email failed:", err.message);
     res.status(500).json({ msg: "Failed to send test email", detail: err.message });

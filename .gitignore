@@ -1,1 +1,14 @@
 node_modules
+
+# env & dev SMTP
+backend/.env
+backend/.smtp-dev.json
+frontend/.env
+.smtp-dev.json
+
+# deps
+backend/node_modules/
+frontend/node_modules/
+
+# secrets & workflows
+workflows
