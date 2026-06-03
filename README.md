@@ -7,10 +7,11 @@ A full-stack web application for predicting stock prices and analyzing market tr
 ![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 ![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![FastAPI](https://img.shields.io/badge/fastapi-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 
 ## ✨ Features
 
-- 🎯 **Stock Price Predictions** - Advanced ML algorithms for accurate market forecasting
+- 🎯 **Stock Price Predictions** - Advanced ML algorithms with sentiment analysis for accurate market forecasting
 - 📊 **Interactive Visualizations** - Beautiful charts and real-time data visualization
 - 🔐 **Secure Authentication** - JWT-based user authentication with secure password handling
 - 💾 **Data Persistence** - Reliable data storage and management
@@ -18,6 +19,7 @@ A full-stack web application for predicting stock prices and analyzing market tr
 - 📧 **Smart Notifications** - Market alerts and price notifications
 - 🎨 **Modern UI** - Responsive, intuitive design with React and TailwindCSS
 - ⚡ **Hot Module Replacement** - Instant development experience with Vite
+- 🧠 **Sentiment Analysis** - NLP-powered financial sentiment analysis using FinBERT
 
 ## 🏗️ Project Structure
 
@@ -39,8 +41,12 @@ stock-prediction/
 │   ├── controllers/
 │   ├── middleware/
 │   └── package.json
-├── ai_service/              # Python ML prediction service
-│   └── [ML models and scripts]
+├── ai_service/              # FastAPI ML prediction service
+│   ├── app/
+│   │   └── app.py           # FastAPI application with /predict endpoint
+│   ├── model.py             # Stock prediction with sentiment analysis
+│   ├── requirements.txt      # Python dependencies
+│   └── README.md
 └── README.md
 ```
 
@@ -88,14 +94,14 @@ npm run frontend-dev
 cd frontend && npm install && npm run dev
 ```
 
-**AI Service** (Python ML predictions):
+**AI Service** (FastAPI ML predictions on port 8000):
 ```bash
 cd ai_service
 pip install -r requirements.txt
-python app.py
+uvicorn app.app:app --reload
 ```
 
-The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:5000`.
+The frontend will be available at `http://localhost:5173`, the backend at `http://localhost:5000`, and the AI service at `http://localhost:8000`.
 
 ## 🔧 Tech Stack
 
@@ -114,11 +120,15 @@ The frontend will be available at `http://localhost:5173` and the backend at `ht
 - **CORS** - Cross-origin resource sharing
 - **Environment Management** - Dotenv configuration
 
-### Data Science 
-- **Python** - ML model development
-- **scikit-learn** - Machine learning algorithms
+### AI/ML Service
+- **FastAPI** - Modern Python web framework for ML APIs
+- **PyTorch** - Deep learning framework
+- **Transformers (Hugging Face)** - Pre-trained NLP models
+- **FinBERT** - Financial sentiment analysis model (ProsusAI/finbert)
+- **yfinance** - Real-time financial data retrieval
 - **pandas** - Data manipulation
 - **numpy** - Numerical computing
+- **scikit-learn** - Machine learning algorithms
 
 ### Styling 
 - **TailwindCSS** - Responsive utility classes
@@ -146,6 +156,11 @@ VITE_API_BASE=http://localhost:5000/api
 VITE_APP_NAME=Stock Prediction
 ```
 
+### AI Service Configuration
+The AI service runs on `http://localhost:8000` with the following endpoints:
+- `/predict` - POST endpoint for stock price predictions with sentiment analysis
+- `/docs` - Interactive API documentation (Swagger UI)
+
 ## 📚 API Documentation
 
 ### Authentication Routes
@@ -170,6 +185,14 @@ GET    /api/users/profile      - Get user profile
 PUT    /api/users/profile      - Update profile
 POST   /api/users/watchlist    - Add to watchlist
 GET    /api/users/watchlist    - Get watchlist
+```
+
+### AI Service Routes
+```
+POST   /predict                - Stock price prediction with sentiment analysis
+  Request body: { "symbol": "AAPL", "timeframe": 7 }
+  Response: { "symbol": "AAPL", "predictedPrice": 150.25, "confidence": 0.85, "currentPrice": 145.50 }
+GET    /docs                   - Interactive API documentation (Swagger UI)
 ```
 
 ## 🧪 Development & Testing
@@ -203,8 +226,12 @@ npm run build
 
 ## 📊 Key Features Explained
 
-### Stock Predictions
-Uses machine learning models trained on historical market data to forecast future price movements with configurable time horizons.
+### Stock Predictions with Sentiment Analysis
+The AI service combines technical analysis with natural language processing:
+- **Historical Trend Analysis** - Calculates price movement patterns from 3-month historical data
+- **Financial Sentiment Analysis** - Uses FinBERT (fine-tuned BERT model) to analyze financial news sentiment
+- **Confidence Scoring** - Provides confidence levels based on sentiment strength
+- **Time Horizon Scaling** - Adjusts predictions based on requested forecast period (1-30 days)
 
 ### Real-time Visualization
 Interactive charts powered by modern charting libraries provide instant market insights and trend analysis.
@@ -223,9 +250,19 @@ Mobile-first approach ensures seamless experience across all devices - desktop, 
 PORT=5001
 
 # Change port in frontend vite.config.js
+# Change port for AI service
+uvicorn app.app:app --reload --port 8001
 ```
 
-### Module Not Found
+### Module Not Found (Python)
+```bash
+# Clear virtual environment and reinstall dependencies
+cd ai_service
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### Module Not Found (Node)
 ```bash
 # Clear node_modules and reinstall
 rm -rf node_modules package-lock.json
@@ -234,10 +271,19 @@ npm install
 
 ### API Connection Issues
 - Verify backend is running on port 5000
+- Verify AI service is running on port 8000
 - Check VITE_API_BASE in frontend .env
 - Ensure CORS is properly configured
+- Check AI service logs: `uvicorn app.app:app --reload`
 
+### PyTorch/Transformers Issues
+If you encounter issues installing PyTorch, ensure you have the correct version for your system:
+```bash
+# For CPU only (recommended for development)
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 
+# For GPU support, visit https://pytorch.org/get-started/locally/
+```
 
 ## 📧 Contact & Support
 
@@ -248,6 +294,8 @@ For questions, suggestions, or collaboration opportunities:
 ## 🙏 Acknowledgments
 
 - React and Vite teams for amazing tools
+- FastAPI and Uvicorn for excellent ML API framework
+- Hugging Face for FinBERT model and Transformers library
 - Open-source community for valuable libraries
 - Contributors and testers
 
