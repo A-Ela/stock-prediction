@@ -99,7 +99,7 @@ The frontend will be available at `http://localhost:5173` and the backend at `ht
 
 ## 🔧 Tech Stack
 
-### Frontend (95.3%)
+### Frontend 
 - **React 19** - Modern UI library with concurrent features
 - **Vite** - Next-generation frontend build tool (10x faster)
 - **TailwindCSS** - Utility-first CSS framework
@@ -114,17 +114,17 @@ The frontend will be available at `http://localhost:5173` and the backend at `ht
 - **CORS** - Cross-origin resource sharing
 - **Environment Management** - Dotenv configuration
 
-### Data Science (1.6%)
+### Data Science 
 - **Python** - ML model development
 - **scikit-learn** - Machine learning algorithms
 - **pandas** - Data manipulation
 - **numpy** - Numerical computing
 
-### Styling (2.8%)
+### Styling 
 - **TailwindCSS** - Responsive utility classes
 - **CSS3** - Custom styling
 
-### Markup (0.3%)
+### Markup 
 - **HTML5** - Semantic markup
 
 ## 📝 Configuration
@@ -237,23 +237,7 @@ npm install
 - Check VITE_API_BASE in frontend .env
 - Ensure CORS is properly configured
 
-## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🐛 Bug Reports & Feature Requests
-
-Found a bug or have a feature request? Please open an [issue](https://github.com/A-Ela/stock-prediction/issues) on GitHub with detailed information.
 
 ## 📧 Contact & Support
 
