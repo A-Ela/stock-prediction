@@ -67,7 +67,7 @@ stock-prediction/
 
 2. **Install root dependencies**
    ```bash
-   npm install
+   npm run install:all
    ```
 
 ### Running the Application
