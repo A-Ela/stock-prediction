@@ -1,11 +1,17 @@
 {
 "scripts":{
+    "install:frontend": "npm --prefix ./frontend install",
+    "install:backend": "npm --prefix ./backend install",
+    "install:all": "npm install && npm run install:frontend && npm run install:backend",
+    
     "frontend-dev":"npm --prefix ./frontend run dev",
     "backend-dev":"npm --prefix ./backend run dev",
     "ai-service-dev":"npm --prefix ./ai_service run dev",
+    
     "smtp:up":"docker compose up -d mailpit",
     "smtp:down":"docker compose down",
     "smtp:setup":"node backend/scripts/setup-smtp-env.js",
+    
     "dev":"concurrently \"npm run backend-dev\" \"npm run frontend-dev\"",
     "dev:all":"concurrently \"npm run smtp:up\" \"npm run backend-dev\" \"npm run frontend-dev\""},
 
